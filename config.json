@@ -1,0 +1,20 @@
+{
+    "server": {
+        "port": "8080",
+        "host": "0.0.0.0"
+    },
+    "database": {
+        "host": "localhost",
+        "port": "3306",
+        "name": "auth_db",
+        "user": "root",
+        "password": "",
+        "max_idle_conns": 10,
+        "max_open_conns": 100
+    },
+    "jwt": {
+        "secret": "your-secret-key-change-this-in-production",
+        "expiry_hours": 24,
+        "refresh_hours": 168
+    }
+}
