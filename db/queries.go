@@ -3,6 +3,7 @@ package database
 import (
 	"errors"
 	"time"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +15,7 @@ func CreateUser(db *gorm.DB, user *User) error {
 		return err
 	}
 	user.Password = hashedPassword
-
+	
 	return db.Create(user).Error
 }
 
@@ -63,8 +64,16 @@ func DeleteUser(db *gorm.DB, id uint) error {
 
 func CheckPasswordDB(db *gorm.DB, username, password string) bool {
 	var user User
-	db.First(&user, "username = ?", username)
-	return user.CheckPassword(username, password)
+	// fmt.Println("password is ", password)
+	if err := db.Where("username = ?", username).First(&user).Error; err != nil {
+		return false
+	}
+	// fmt.Println("user.Password is ", user.Password)
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		// fmt.Println("Error comparing passwords:", err)
+		return false
+	}
+	return true
 }
 
 func CheckUsernameDB(db *gorm.DB, username string) bool {
@@ -74,7 +83,10 @@ func CheckUsernameDB(db *gorm.DB, username string) bool {
 }
 
 func UpdateRefreshToken(db *gorm.DB, username, refreshToken string, tokenExpiry time.Time) error {
-	return db.Model(&User{}).Where("username = ?", username).Update("refresh_token", refreshToken).Update("token_expiry", tokenExpiry).Error
+	return db.Model(&User{}).Where("username = ?", username).Updates(User{
+		RefreshToken: refreshToken,
+		RefreshTokenExpiry: &tokenExpiry,
+	}).Error
 }
 
 func CheckRefreshToken(db *gorm.DB, refreshToken string) bool {
@@ -84,11 +96,17 @@ func CheckRefreshToken(db *gorm.DB, refreshToken string) bool {
 }
 
 func StoreRefreshToken(db *gorm.DB, username, refreshToken string, tokenExpiry time.Time) error {
-	return db.Model(&User{}).Where("username = ?", username).Update("refresh_token", refreshToken).Update("token_expiry", tokenExpiry).Error
+	return db.Model(&User{}).Where("username = ?", username).Updates(User{
+		RefreshToken: refreshToken,
+		RefreshTokenExpiry: &tokenExpiry,
+	}).Error
 }
 
 func StoreAccessToken(db *gorm.DB, username, accessToken string, tokenExpiry time.Time) error {
-	return db.Model(&User{}).Where("username = ?", username).Update("access_token", accessToken).Update("token_expiry", tokenExpiry).Error
+	return db.Model(&User{}).Where("username = ?", username).Updates(User{
+		AccessToken: accessToken,
+		AccessTokenExpiry: &tokenExpiry,
+	}).Error
 }
 
 func ValidateAccessToken(db *gorm.DB, accessToken string) (bool, error) {
@@ -98,6 +116,8 @@ func ValidateAccessToken(db *gorm.DB, accessToken string) (bool, error) {
 }
 
 func DeleteRefreshToken(db *gorm.DB, refreshToken string) error {
-	return db.Model(&User{}).Where("refresh_token = ?", refreshToken).Update("refresh_token", nil).Update("token_expiry", nil).Error
+	return db.Model(&User{}).Where("refresh_token = ?", refreshToken).Updates(User{
+		RefreshToken: "",
+		RefreshTokenExpiry: nil,
+	}).Error
 }
-

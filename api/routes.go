@@ -21,7 +21,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB) {
 			auth.POST("/refresh", authHandler.RefreshToken) // refresh token and get access token
 		}
 		// Protected routes
-		users := v1.Group("/users")
+		users := v1.Group("/users/register")
 		{
 			users.POST("", userHandler.CreateUser)
 		}

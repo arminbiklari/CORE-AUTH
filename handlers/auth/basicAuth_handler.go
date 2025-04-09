@@ -3,9 +3,9 @@ package auth
 import (
 	database "core-auth/db"
 	token "core-auth/internal/tokens"
+	"log"
 	"net/http"
 	"time"
-
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -38,16 +38,33 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Get user by username
 	if !database.CheckUsernameDB(h.db, req.Username) {
+		log.Printf("Login failed: username %s not found", req.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
 	// Check password
 	if !database.CheckPasswordDB(h.db, req.Username, req.Password) {
+		log.Printf("Login failed: invalid password for user %s", req.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
+	// Check if user is active
+	user, err := database.GetUserByUsername(h.db, req.Username)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+	// Check password is correct CheckPasswordDB
+	if !database.CheckPasswordDB(h.db, req.Username, req.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+	if !user.CheckActive(h.db) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User account is not active"})
+		return
+	}
 	// Generate refresh token
 	refreshToken, tokenExpiry, err := token.GenerateRefreshToken()
 	if err != nil {

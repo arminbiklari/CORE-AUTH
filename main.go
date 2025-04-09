@@ -1,13 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
-
 	"core-auth/api"
 	"core-auth/config"
 	database "core-auth/db"
-
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -24,29 +21,10 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Debug: Print loaded configuration
-	if configJSON, err := json.MarshalIndent(conf, "", "  "); err == nil {
-		log.Printf("Loaded configuration:\n%s", string(configJSON))
-	}
-
 	// Initialize database
 	db, err := database.InitDB()
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	// Print database connection status
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatalf("Failed to get database instance: %v", err)
-	}
-	if err := sqlDB.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err) 
-	}
-	log.Printf("Successfully connected to database at %s:%s", conf.Database.Host, conf.Database.Port)
-
-	// Create Schema and migrations
-	if err := database.AutoMigrate(db); err != nil {
-		log.Fatalf("Failed to run database migrations: %v", err)
+		panic(err)
 	}
 
 	// Create router

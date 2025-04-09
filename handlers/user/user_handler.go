@@ -4,7 +4,9 @@ import (
 	database "core-auth/db"
 	token "core-auth/internal/tokens"
 	"net/http"
+	"strings"
 	"time"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -40,6 +42,13 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	// Check if username already exists
+	exists := database.CheckUsernameDB(h.db, req.Username)
+	if exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
+		return
+	}
+
 	// Set default role if none provided
 	roleID := database.GetDefaultUserRole()
 	if req.RoleID != nil {
@@ -56,6 +65,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate refresh token"})
 		return
 	}
+
 	// Create new user
 	user := &database.User{
 		Username: req.Username,
@@ -68,6 +78,16 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	// Use the database function to create user
 	if err := database.CreateUser(h.db, user); err != nil {
+		if strings.Contains(err.Error(), "Duplicate entry") {
+			if strings.Contains(err.Error(), "users.uni_users_username") {
+				c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
+			} else if strings.Contains(err.Error(), "users.uni_users_email") {
+				c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
+			} else {
+				c.JSON(http.StatusConflict, gin.H{"error": "Username or email already exists"})
+			}
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
