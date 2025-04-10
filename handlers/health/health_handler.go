@@ -1,9 +1,8 @@
 package health
 
 import (
-	"core-auth/core"
+	"core-auth/internal/core"
 	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -25,4 +24,4 @@ func (h *HealthHandler) Check(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, status)
-} 
+}

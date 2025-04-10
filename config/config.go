@@ -98,4 +98,4 @@ func LoadFromEnv() (*Config, error) {
 	config.JWT.RefreshHours = getEnvAsIntOrDefault("JWT_REFRESH_HOURS", 168)
 
 	return config, nil
-} 
+}
