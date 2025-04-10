@@ -22,6 +22,11 @@ type Config struct {
 		Password     string `json:"password"`
 		MaxIdleConns int    `json:"max_idle_conns"`
 		MaxOpenConns int    `json:"max_open_conns"`
+		ConnTimeout      int `json:"conn_timeout"`       // in seconds
+		ReadTimeout      int `json:"read_timeout"`       // in seconds
+		WriteTimeout     int `json:"write_timeout"`      // in seconds
+		ConnMaxLifetime  int `json:"conn_max_lifetime"`  // in minutes
+		ConnMaxIdleTime  int `json:"conn_max_idle_time"` // in minutes
 	} `json:"database"`
 	
 	JWT struct {
@@ -81,6 +86,11 @@ func LoadFromEnv() (*Config, error) {
 	config.Database.Password = getEnvOrDefault("DB_PASSWORD", "")
 	config.Database.MaxIdleConns = getEnvAsIntOrDefault("DB_MAX_IDLE_CONNS", 10)
 	config.Database.MaxOpenConns = getEnvAsIntOrDefault("DB_MAX_OPEN_CONNS", 100)
+	config.Database.ConnTimeout = getEnvAsIntOrDefault("DB_CONN_TIMEOUT", 5)
+	config.Database.ReadTimeout = getEnvAsIntOrDefault("DB_READ_TIMEOUT", 30)
+	config.Database.WriteTimeout = getEnvAsIntOrDefault("DB_WRITE_TIMEOUT", 30)
+	config.Database.ConnMaxLifetime = getEnvAsIntOrDefault("DB_CONN_MAX_LIFETIME", 60)
+	config.Database.ConnMaxIdleTime = getEnvAsIntOrDefault("DB_CONN_MAX_IDLE_TIME", 5)
 	
 	// JWT config
 	config.JWT.Secret = getEnvOrDefault("JWT_SECRET", "your-secret-key")

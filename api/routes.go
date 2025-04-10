@@ -3,15 +3,21 @@ package api
 import (
 	auth "core-auth/handlers/auth"
 	user "core-auth/handlers/user"
+	health "core-auth/handlers/health"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 func SetupRoutes(router *gin.Engine, db *gorm.DB) {
+	// Initialize handlers
 	userHandler := user.NewUserHandler(db)
 	authHandler := auth.NewAuthHandler(db)
+	healthHandler := health.NewHealthHandler(db)
 
-	// Public routes
+	// Health check endpoint
+	router.GET("/health", healthHandler.Check)
+
+	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
 		// Auth routes (no middleware)

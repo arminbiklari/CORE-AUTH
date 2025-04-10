@@ -77,6 +77,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	// Use the database function to create user
+	// TODO: Use the var mysqlErr *mysql.MySQLError
 	if err := database.CreateUser(h.db, user); err != nil {
 		if strings.Contains(err.Error(), "Duplicate entry") {
 			if strings.Contains(err.Error(), "users.uni_users_username") {
