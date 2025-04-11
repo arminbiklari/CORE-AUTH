@@ -6,21 +6,15 @@ import (
 	"fmt"
 	"log"
 	"time"
-	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func InitDB() (*gorm.DB, error) {
-	// Load .env file
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found or error loading it: %v", err)
-	}
-
 	// get database config from config.go file 
 	dbConfig, err := config.LoadFromEnv()
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to load database config: %v", err)
 	}
 
 	// Build DSN with timeout parameters

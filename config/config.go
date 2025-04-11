@@ -34,6 +34,21 @@ type Config struct {
 		ExpiryHours  int    `json:"expiry_hours"`
 		RefreshHours int    `json:"refresh_hours"`
 	} `json:"jwt"`
+
+	OAuth2Server struct {
+		AccessTokenDuration  int    `json:"access_token_duration"`  // in minutes
+		RefreshTokenDuration int    `json:"refresh_token_duration"` // in hours
+		AuthorizationCode   struct {
+			Length     int `json:"length"`
+			ExpiresIn  int `json:"expires_in"` // in minutes
+		} `json:"authorization_code"`
+	} `json:"oauth2_server"`
+
+	Redis struct {
+		Addr     string `json:"addr"`     // e.g., "localhost:6379"
+		Password string `json:"password"` // empty if no password
+		DB       int    `json:"db"`       // e.g., 0
+	} `json:"redis"`
 }
 
 // Load loads configuration from a JSON file
@@ -96,6 +111,17 @@ func LoadFromEnv() (*Config, error) {
 	config.JWT.Secret = getEnvOrDefault("JWT_SECRET", "your-secret-key")
 	config.JWT.ExpiryHours = getEnvAsIntOrDefault("JWT_EXPIRY_HOURS", 24)
 	config.JWT.RefreshHours = getEnvAsIntOrDefault("JWT_REFRESH_HOURS", 168)
+
+	// OAuth2 server config
+	config.OAuth2Server.AccessTokenDuration = getEnvAsIntOrDefault("OAUTH2_ACCESS_TOKEN_DURATION", 15)
+	config.OAuth2Server.RefreshTokenDuration = getEnvAsIntOrDefault("OAUTH2_REFRESH_TOKEN_DURATION", 24)
+	config.OAuth2Server.AuthorizationCode.Length = getEnvAsIntOrDefault("OAUTH2_AUTHORIZATION_CODE_LENGTH", 16)
+	config.OAuth2Server.AuthorizationCode.ExpiresIn = getEnvAsIntOrDefault("OAUTH2_AUTHORIZATION_CODE_EXPIRES_IN", 15)
+
+	// Redis config
+	config.Redis.Addr = getEnvOrDefault("REDIS_ADDR", "localhost:6379")
+	config.Redis.Password = getEnvOrDefault("REDIS_PASSWORD", "")
+	config.Redis.DB = getEnvAsIntOrDefault("REDIS_DB", 0)
 
 	return config, nil
 }

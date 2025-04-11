@@ -3,25 +3,38 @@ package health
 import (
 	"core-auth/internal/core"
 	"net/http"
+
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type HealthHandler struct {
-	db *gorm.DB
+	db  *gorm.DB
+	rdb *redis.Client
 }
 
-func NewHealthHandler(db *gorm.DB) *HealthHandler {
+func NewHealthHandler(db *gorm.DB, rdb *redis.Client) *HealthHandler {
 	return &HealthHandler{
-		db: db,
+		db:  db,
+		rdb: rdb,
 	}
 }
 
 func (h *HealthHandler) Check(c *gin.Context) {
-	status, err := core.CheckHealth(h.db)
+	status, err, redisUp := core.CheckHealth(h.db, h.rdb)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, status)
 		return
 	}
+	
+	if !redisUp {
+		c.JSON(http.StatusOK, gin.H{
+			"status": status,
+			"message": "Redis is down, using database fallback",
+		})
+		return
+	}
+	
 	c.JSON(http.StatusOK, status)
 }
