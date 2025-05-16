@@ -34,6 +34,7 @@ type Config struct {
 		Token string `json:"token"`
 		RolePath string `json:"role_path"`
 		SkipVerify bool `json:"skip_verify"`
+		LeaseDuration int `json:"lease_duration"`
 	} `json:"vault"`
 
 	JWT struct {
@@ -128,6 +129,7 @@ func LoadFromEnv() (*Config, error) {
 	config.Vault.Token = getEnvOrDefault("VAULT_TOKEN", "")
 	config.Vault.RolePath = getEnvOrDefault("VAULT_ROLE_PATH", "db-mysql/creds/core-auth-fullaccess")
 	config.Vault.SkipVerify = getEnvAsBoolOrDefault("VAULT_SKIP_VERIFY", true)
+	config.Vault.LeaseDuration = getEnvAsIntOrDefault("VAULT_LEASE_DURATION", 3600) // in seconds
 	// JWT config
 	config.JWT.Secret = getEnvOrDefault("JWT_SECRET", "your-secret-key")
 	config.JWT.ExpiryHours = getEnvAsIntOrDefault("JWT_EXPIRY_HOURS", 24)

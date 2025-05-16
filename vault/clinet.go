@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"crypto/tls"
+	"log"
 	"net/http"
 
 	"core-auth/config"
@@ -60,5 +61,6 @@ func (v *VaultClient) GetDatabaseCredentials(ctx context.Context) (string, strin
 		return "", "", err
 	}
 
+	log.Printf("Retrieved new database credentials from Vault with lease id: %s", secret.LeaseID)
 	return username, password, nil
 }

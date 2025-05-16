@@ -3,9 +3,11 @@ package database
 import (
 	"context"
 	"core-auth/config"
+	"core-auth/credentials"
 	"core-auth/vault"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -13,12 +15,53 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// getDatabaseCredentials retrieves credentials either from env vars or Vault
+// Interface for a credential provider
+type CredentialProvider interface {
+	GetCredentials() (string, string)
+}
+
+// Default credential provider using environment variables
+type envCredentialProvider struct {
+	cfg *config.Config
+}
+
+func (e *envCredentialProvider) GetCredentials() (string, string) {
+	return e.cfg.Database.User, e.cfg.Database.Password
+}
+
+// Global credential provider that can be set from outside
+var (
+	credentialProvider CredentialProvider
+	providerMutex      sync.RWMutex
+)
+
+// SetCredentialProvider allows setting a credential provider from outside packages
+func SetCredentialProvider(provider CredentialProvider) {
+	providerMutex.Lock()
+	defer providerMutex.Unlock()
+	credentialProvider = provider
+}
+
+// Global DB reference for connection management
+var (
+	globalDBMutex sync.RWMutex
+	globalDB      *gorm.DB
+)
+
+// getDatabaseCredentials retrieves credentials from the credentials package or directly from config
 func getDatabaseCredentials(cfg *config.Config) (string, string, error) {
-	// Check if Vault is configured
-	fmt.Println("Vault token:", cfg.Vault.Token)
-	fmt.Println("Vault role path:", cfg.Vault.RolePath)
+	// Try to get credentials from the credentials provider first
+	username, password := credentials.Get()
+	
+	if username != "" && password != "" {
+		log.Println("Using database credentials from credentials provider")
+		return username, password, nil
+	}
+	
+	// Fall back to direct Vault access if configured
 	if cfg.Vault.Token != "" && cfg.Vault.RolePath != "" {
+		log.Println("Credentials provider not available, fetching directly from Vault")
+		
 		// Initialize Vault client
 		vaultClient, err := vault.NewVaultClient(cfg)
 		if err != nil {
@@ -31,7 +74,7 @@ func getDatabaseCredentials(cfg *config.Config) (string, string, error) {
 			return "", "", fmt.Errorf("failed to get credentials from Vault: %v", err)
 		}
 
-		log.Println("Successfully retrieved database credentials from Vault")
+		log.Println("Successfully retrieved database credentials directly from Vault")
 		return username, password, nil
 	}
 
@@ -137,5 +180,83 @@ func InitDB() (*gorm.DB, error) {
 		panic(err)
 	}
 
+	// Set the global DB instance
+	replaceDBInstance(db)
+
 	return db, nil
+}
+
+// RenewConnection updates the database connection with new credentials
+func RenewConnection(username, password string) error {
+	// Get the current configuration
+	cfg, err := config.LoadFromEnv()
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %v", err)
+	}
+
+	// Build a new DSN with the new credentials
+	dbDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&timeout=%ds&readTimeout=%ds&writeTimeout=%ds",
+		username,
+		password,
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.Name,
+		cfg.Database.ConnTimeout,
+		cfg.Database.ReadTimeout,
+		cfg.Database.WriteTimeout,
+	)
+
+	// Create a new connection with the new credentials
+	newDB, err := gorm.Open(mysql.Open(dbDsn), &gorm.Config{
+		PrepareStmt: true,
+		Logger: logger.New(
+			log.New(log.Writer(), "\r\n", log.LstdFlags),
+			logger.Config{
+				SlowThreshold: 200 * time.Millisecond,
+				LogLevel:      logger.Warn,
+				IgnoreRecordNotFoundError: true,
+			},
+		),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to open new database connection: %v", err)
+	}
+
+	// Test the new connection
+	sqlDB, err := newDB.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get SQL DB: %v", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database with new credentials: %v", err)
+	}
+
+	// Apply connection settings
+	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	sqlDB.SetConnMaxIdleTime(time.Minute * time.Duration(cfg.Database.ConnMaxIdleTime))
+	sqlDB.SetConnMaxLifetime(time.Hour * time.Duration(cfg.Database.ConnMaxLifetime))
+
+	// Replace the global DB instance
+	// Note: This assumes you have a way to access and update the global DB instance
+	// You may need to adjust this based on how your application manages DB connections
+	replaceDBInstance(newDB)
+
+	log.Printf("Successfully renewed database connection with new credentials")
+	return nil
+}
+
+// GetDB returns the current database connection
+func GetDB() *gorm.DB {
+	globalDBMutex.RLock()
+	defer globalDBMutex.RUnlock()
+	return globalDB
+}
+
+// replaceDBInstance updates the global DB reference with a new connection
+func replaceDBInstance(db *gorm.DB) {
+	globalDBMutex.Lock()
+	defer globalDBMutex.Unlock()
+	globalDB = db
 }

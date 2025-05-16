@@ -2,6 +2,8 @@ package main
 
 import (
 	"core-auth/api"
+	"core-auth/config"
+	"core-auth/credentials"
 	database "core-auth/db"
 	cache "core-auth/internal/cache"
 	"log"
@@ -9,6 +11,29 @@ import (
 )
 
 func main() {
+	// Load configuration
+	cfg, err := config.LoadFromEnv()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Initialize credentials provider
+	if cfg.Vault.Token != "" && cfg.Vault.RolePath != "" {
+		log.Println("Initializing Vault credentials provider")
+		vaultProvider := credentials.NewVaultProvider(cfg)
+		if err := vaultProvider.Initialize(); err != nil {
+			log.Printf("Warning: Failed to initialize Vault credentials: %v", err)
+			// Fall back to environment credentials
+			credentials.RegisterEnvironmentProvider(cfg)
+		} else {
+			// Start credential rotation in background
+			go vaultProvider.StartRotation()
+		}
+	} else {
+		// Use environment credentials
+		credentials.RegisterEnvironmentProvider(cfg)
+	}
+
 	// Initialize Redis (will continue even if Redis is unavailable)
 	rdb, err := cache.InitRedis()
 	if err != nil {
