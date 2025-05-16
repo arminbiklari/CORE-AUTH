@@ -2,13 +2,14 @@ package oauth2
 
 import (
 	"context"
-	"encoding/json"
-	"time"
-	"errors"
 	database "core-auth/db"
+	"encoding/json"
+	"errors"
+	"time"
+
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/models"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
@@ -30,7 +31,7 @@ func NewStorage(rdb *redis.Client, db *gorm.DB) *Storage {
 
 // GetClient implements oauth2.Server.Storage interface
 func (s *Storage) GetClient(clientID string) (oauth2.ClientInfo, error) {
-	// Try Redis first
+	// Try Redis first if available
 	if s.rdb != nil {
 		key := redisClientPrefix + clientID
 		data, err := s.rdb.Get(s.ctx, key).Bytes()
@@ -90,7 +91,7 @@ func (s *Storage) SaveAuthorize(data *authorizeData) error {
 		if err == nil {
 			ttl := time.Until(data.ExpiresAt)
 			if ttl > 0 {
-				s.rdb.SetEx(s.ctx, key, authData, ttl)
+				s.rdb.SetEX(s.ctx, key, authData, ttl)
 			}
 		}
 	}
@@ -148,7 +149,7 @@ func (s *Storage) SaveAccess(data *database.OAuth2Token) error {
 		if err == nil {
 			ttl := time.Until(data.AccessExpiresAt)
 			if ttl > 0 {
-				s.rdb.SetEx(s.ctx, accessKey, accessData, ttl)
+				s.rdb.SetEX(s.ctx, accessKey, accessData, ttl)
 			}
 		}
 
@@ -159,7 +160,7 @@ func (s *Storage) SaveAccess(data *database.OAuth2Token) error {
 			if err == nil {
 				ttl := time.Until(*data.RefreshExpiresAt)
 				if ttl > 0 {
-					s.rdb.SetEx(s.ctx, refreshKey, refreshData, ttl)
+					s.rdb.SetEX(s.ctx, refreshKey, refreshData, ttl)
 				}
 			}
 		}

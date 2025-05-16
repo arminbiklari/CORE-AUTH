@@ -2,6 +2,7 @@ package database
 
 import (
 	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -31,15 +32,18 @@ var DefaultRoles = []Role{
 func InitializeRoles(db *gorm.DB) error {
 	for _, role := range DefaultRoles {
 		var existingRole Role
-		if err := db.Where("id = ?", role.ID).First(&existingRole).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				if err := db.Create(&role).Error; err != nil {
-					return err
-				}
-			} else {
+		err := db.Where("id = ?", role.ID).First(&existingRole).Error
+		
+		// If role doesn't exist, create it
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := db.Create(&role).Error; err != nil {
 				return err
 			}
+		} else if err != nil {
+			// This handles real database errors, not just "not found"
+			return err
 		}
+		// If no error, role exists, do nothing
 	}
 	return nil
 }

@@ -1,11 +1,12 @@
 package api
 
 import (
-	"log"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"core-auth/config"
-	"github.com/redis/go-redis/v9"
+	"log"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"gorm.io/gorm"
 )
 
 func InitRoutes(db *gorm.DB, rdb *redis.Client) error {

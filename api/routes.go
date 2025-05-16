@@ -4,10 +4,10 @@ import (
 	"core-auth/handlers/auth"
 	"core-auth/handlers/health"
 	"core-auth/handlers/user"
-	"log"
+	"core-auth/internal/oauth2"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
@@ -16,10 +16,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, rdb *redis.Client) {
 	userHandler := user.NewUserHandler(db)
 	healthHandler := health.NewHealthHandler(db, rdb)
 	authHandler := auth.NewAuthHandler(db)
-	oauth2Handler, err := auth.NewOAuth2ServerHandler(db, rdb)
-	if err != nil {
-		log.Fatalf("Failed to initialize OAuth2 server handler: %v", err)
-	}
+	oauth2Handler := auth.NewOAuth2ServerHandler(oauth2.NewServer(rdb, db), oauth2.NewManager(rdb, db), db, rdb)
 	// --- Health check ---
 	router.GET("/health", healthHandler.Check)
 	// --- Traditional Auth (Login, Refresh for UI/Direct Users) ---
@@ -37,13 +34,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, rdb *redis.Client) {
 		oauth2Group.GET("/authorize", oauth2Handler.Authorize)
 		
 		// Authorization callback (Step B)
-		oauth2Group.GET("/callback", oauth2Handler.AuthorizeCallback)
+		oauth2Group.GET("/callback", oauth2Handler.Authorize)
 		
 		// Token endpoint (Step D)
 		oauth2Group.POST("/token", oauth2Handler.Token)
 		
 		// Token validation (Step F)
-		oauth2Group.GET("/validate", oauth2Handler.ValidateToken)
+		oauth2Group.GET("/validate", oauth2Handler.Token)
 	}
 
 	// // User routes

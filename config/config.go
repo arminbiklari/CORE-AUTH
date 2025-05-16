@@ -28,7 +28,14 @@ type Config struct {
 		ConnMaxLifetime  int `json:"conn_max_lifetime"`  // in minutes
 		ConnMaxIdleTime  int `json:"conn_max_idle_time"` // in minutes
 	} `json:"database"`
-	
+
+	Vault struct {
+		Addr string `json:"addr"`
+		Token string `json:"token"`
+		RolePath string `json:"role_path"`
+		SkipVerify bool `json:"skip_verify"`
+	} `json:"vault"`
+
 	JWT struct {
 		Secret       string `json:"secret"`
 		ExpiryHours  int    `json:"expiry_hours"`
@@ -84,6 +91,15 @@ func getEnvAsIntOrDefault(key string, defaultValue int) int {
 	return defaultValue
 }
 
+func getEnvAsBoolOrDefault(key string, defaultValue bool) bool {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		if boolVal, err := strconv.ParseBool(value); err == nil {
+			return boolVal
+		}
+	}
+	return defaultValue
+}
+
 // LoadFromEnv loads configuration from environment variables
 func LoadFromEnv() (*Config, error) {
 	config := &Config{}
@@ -94,10 +110,10 @@ func LoadFromEnv() (*Config, error) {
 	config.Server.GinMode = getEnvOrDefault("GIN_MODE", "release")
 	
 	// Database config
-	config.Database.Host = getEnvOrDefault("DB_HOST", "localhost")
+	config.Database.Host = getEnvOrDefault("DB_HOST", "127.0.0.1")
 	config.Database.Port = getEnvOrDefault("DB_PORT", "3306")
 	config.Database.Name = getEnvOrDefault("DB_NAME", "auth_db")
-	config.Database.User = getEnvOrDefault("DB_USER", "root")
+	config.Database.User = getEnvOrDefault("DB_USER", "")
 	config.Database.Password = getEnvOrDefault("DB_PASSWORD", "")
 	config.Database.MaxIdleConns = getEnvAsIntOrDefault("DB_MAX_IDLE_CONNS", 10)
 	config.Database.MaxOpenConns = getEnvAsIntOrDefault("DB_MAX_OPEN_CONNS", 100)
@@ -106,7 +122,12 @@ func LoadFromEnv() (*Config, error) {
 	config.Database.WriteTimeout = getEnvAsIntOrDefault("DB_WRITE_TIMEOUT", 30)
 	config.Database.ConnMaxLifetime = getEnvAsIntOrDefault("DB_CONN_MAX_LIFETIME", 60)
 	config.Database.ConnMaxIdleTime = getEnvAsIntOrDefault("DB_CONN_MAX_IDLE_TIME", 5)
-	
+
+	// Vault config
+	config.Vault.Addr = getEnvOrDefault("VAULT_ADDR", "https://127.0.0.1:8200")
+	config.Vault.Token = getEnvOrDefault("VAULT_TOKEN", "")
+	config.Vault.RolePath = getEnvOrDefault("VAULT_ROLE_PATH", "db-mysql/creds/core-auth-fullaccess")
+	config.Vault.SkipVerify = getEnvAsBoolOrDefault("VAULT_SKIP_VERIFY", true)
 	// JWT config
 	config.JWT.Secret = getEnvOrDefault("JWT_SECRET", "your-secret-key")
 	config.JWT.ExpiryHours = getEnvAsIntOrDefault("JWT_EXPIRY_HOURS", 24)

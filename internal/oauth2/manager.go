@@ -3,8 +3,9 @@ package oauth2
 import (
 	database "core-auth/db"
 	"time"
+
 	"github.com/go-oauth2/oauth2/v4"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
